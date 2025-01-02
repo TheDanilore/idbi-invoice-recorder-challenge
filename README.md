@@ -80,7 +80,7 @@ php artisan db:seed
 
 ## Uso
 
-La API estará disponible en: http://localhost:8000/api/v1
+La API estará disponible en: http://localhost:8080/api/v1
 
 ### (Opcional) Verificar correos en MailHog
 
