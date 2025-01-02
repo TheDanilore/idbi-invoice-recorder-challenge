@@ -15,68 +15,26 @@ use SimpleXMLElement;
 
 class VoucherService
 {
+    /**
+     * Obtiene una lista paginada de vouchers.
+     *
+     * @param int $page
+     * @param int $paginate
+     * @return LengthAwarePaginator
+     */
     public function getVouchers(int $page, int $paginate): LengthAwarePaginator
     {
         return Voucher::with(['lines', 'user'])->paginate(perPage: $paginate, page: $page);
     }
 
     /**
-     * @param string[] $xmlContents
+     * Almacena un comprobante a partir del contenido XML.
+     *
+     * @param string $xmlContent
      * @param User $user
-     * @return Voucher[]
+     * @return Voucher
+     * @throws Exception Si el XML no contiene información válida.
      */
-    // public function storeVouchersFromXmlContents(array $xmlContents, User $user): array
-    // {
-    //     $vouchers = [];
-    //     $errores = [];
-
-    //     foreach ($xmlContents as $xmlContent) {
-    //         try {
-    //             // Procesar cada comprobante dentro de su propia transacción
-    //             $voucher = DB::transaction(function () use ($xmlContent, $user) {
-    //                 return $this->storeVoucherFromXmlContent($xmlContent, $user);
-    //             });
-    //             $vouchers[] = $voucher;
-    //         } catch (Exception $e) {
-    //             // Capturar errores para cada archivo
-    //             $errores[] = [
-    //                 'xml' => substr($xmlContent, 0, 100), // Muestra los primeros 100 caracteres del XML
-    //                 'error' => $e->getMessage(),
-    //             ];
-    //         }
-    //     }
-
-    //     // Registrar evento solo si hay comprobantes válidos
-    //     if (!empty($vouchers)) {
-    //         VouchersCreated::dispatch($vouchers, $user);
-    //     }
-
-    //     // Si hay errores, devolverlos para su manejo
-    //     if (!empty($errores)) {
-    //         throw new Exception(json_encode([
-    //             'message' => 'Algunos comprobantes no pudieron procesarse.',
-    //             'errors' => $errores,
-    //         ]));
-    //     }
-
-    //     foreach ($xmlContents as $xmlContent) {
-    //         try {
-    //             $voucher = DB::transaction(function () use ($xmlContent, $user) {
-    //                 return $this->storeVoucherFromXmlContent($xmlContent, $user);
-    //             });
-    //             $vouchers[] = $voucher;
-    //         } catch (Exception $e) {
-    //             $errores[] = [
-    //                 'xml' => substr($xmlContent, 0, 100),
-    //                 'error' => $e->getMessage(),
-    //             ];
-    //         }
-    //     }
-
-
-    //     return $vouchers;
-    // }
-
     public function storeVoucherFromXmlContent(string $xmlContent, User $user): Voucher
     {
         Log::info("Procesando contenido XML para almacenar", ['user_id' => $user->id]);
@@ -85,7 +43,7 @@ class VoucherService
 
             $xml = new SimpleXMLElement($xmlContent);
 
-            // Extraer datos del XML y convertirlos a tipos escalares
+            // Extraer datos del XML
             $issuerName = (string) ($xml->xpath('//cac:AccountingSupplierParty/cac:Party/cac:PartyName/cbc:Name')[0] ?? '');
             $issuerDocumentType = (string) ($xml->xpath('//cac:AccountingSupplierParty/cac:Party/cac:PartyIdentification/cbc:ID/@schemeID')[0] ?? '');
             $issuerDocumentNumber = (string) ($xml->xpath('//cac:AccountingSupplierParty/cac:Party/cac:PartyIdentification/cbc:ID')[0] ?? '');
@@ -100,7 +58,7 @@ class VoucherService
             $tipoComprobante = (string) ($xml->xpath('//cbc:InvoiceTypeCode')[0] ?? '');
             $moneda = (string) ($xml->xpath('//cbc:DocumentCurrencyCode')[0] ?? '');
 
-            // Validar los campos obligatorios
+            // Validaciones
             if (!$issuerName || !$issuerDocumentType || !$issuerDocumentNumber) {
                 throw new Exception("El XML no contiene información válida del emisor.");
             }
@@ -126,9 +84,6 @@ class VoucherService
                 Log::warning("Hash ya existe, ignorando comprobante", ['hash' => $hash]);
                 throw new Exception("El comprobante ya existe con hash: {$hash}");
             }
-
-
-
 
             // Crear el registro del voucher
             $voucher = Voucher::create([
@@ -166,6 +121,12 @@ class VoucherService
         });
     }
 
+    /**
+     * Procesa y almacena múltiples comprobantes XML.
+     *
+     * @param string[] $xmlContents
+     * @param User $user
+     */
     public function storeVouchersFromXmlContents(array $xmlContents, User $user): void
     {
         $vouchers = []; // Array para almacenar los comprobantes procesados.
@@ -187,6 +148,12 @@ class VoucherService
         }
     }
 
+    /**
+     * Extrae datos clave del contenido XML.
+     *
+     * @param string $xmlContent
+     * @return array
+     */
     public function parseXML($xmlContent): array
     {
         $xml = new SimpleXMLElement($xmlContent);
@@ -198,6 +165,11 @@ class VoucherService
         ];
     }
 
+    /**
+     * Obtiene montos acumulados agrupados por moneda.
+     *
+     * @return array
+     */
     public function getMontosAcumuladosPorMoneda(): array
     {
         // Consulta a la base de datos agrupando por moneda y sumando los montos
@@ -207,6 +179,14 @@ class VoucherService
             ->toArray();
     }
 
+    /**
+     * Filtra y obtiene comprobantes según criterios específicos.
+     *
+     * @param array $filters
+     * @param int $page
+     * @param int $paginate
+     * @return LengthAwarePaginator
+     */
     public function getFilteredVouchers(array $filters, int $page, int $paginate): LengthAwarePaginator
     {
         $query = Voucher::query();

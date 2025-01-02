@@ -8,6 +8,9 @@ use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
+/**
+ * Evento que se dispara cuando se crean nuevos comprobantes.
+ */
 class VouchersCreated
 {
     use Dispatchable;
@@ -15,12 +18,14 @@ class VouchersCreated
     use SerializesModels;
 
     /**
-     * @param Voucher[] $vouchers
-     * @param User $user
+     * Constructor del evento.
+     *
+     * @param Voucher[] $vouchers Lista de comprobantes creados.
+     * @param User $user Usuario que generó los comprobantes.
      */
     public function __construct(
-        public readonly array $vouchers,
-        public readonly User $user
+        public readonly array $vouchers, // Lista de comprobantes creados.
+        public readonly User $user       // Usuario autenticado.
     ) {
     }
 }

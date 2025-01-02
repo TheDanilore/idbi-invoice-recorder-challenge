@@ -10,23 +10,30 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * Controlador para manejar el almacenamiento de comprobantes XML subidos por los usuarios.
+ */
 class StoreVouchersHandler
 {
+    // Constructor para inyectar dependencias
     public function __construct(private readonly VoucherService $voucherService) {}
 
+    /**
+     * Maneja la subida de archivos XML y su procesamiento.
+     * 
+     * @param Request $request
+     * @return JsonResponse|AnonymousResourceCollection Respuesta HTTP
+     */
     public function __invoke(Request $request): JsonResponse|AnonymousResourceCollection
     {
         try {
+            // Obtiene los archivos subidos
             $xmlFiles = $request->file('files');
-
-            // Convertir en array si no lo es
-            if ($xmlFiles instanceof \Illuminate\Http\UploadedFile) {
-                $xmlFiles = [$xmlFiles];
-            }
 
             // Log para confirmar que se han recibido archivos correctamente
             Log::info("Archivos recibidos", ['count' => is_array($xmlFiles) ? count($xmlFiles) : 0]);
 
+            // Verifica que haya archivos para procesar
             if (empty($xmlFiles)) {
                 return response()->json([
                     'message' => 'No se proporcionaron archivos.',
@@ -38,9 +45,7 @@ class StoreVouchersHandler
                 $xmlFiles = [$xmlFiles];
             }
 
-            // Ahora puedes usar count() con seguridad
-            Log::info("Archivos recibidos", ['count' => count($xmlFiles)]);
-
+            // Asegura que los archivos sean válidos y extrae el contenido
             $xmlContents = [];
             foreach ($xmlFiles as $index => $xmlFile) {
                 if (!$xmlFile->isValid()) {
@@ -54,14 +59,17 @@ class StoreVouchersHandler
             }
             Log::info("Contenido de XMLs procesados", ['count' => count($xmlContents)]);
 
+            // Obtiene el usuario autenticado
             $user = auth()->user();
 
+            // Procesa los archivos XML
             $this->voucherService->storeVouchersFromXmlContents($xmlContents, $user);
 
             return response()->json([
                 'message' => 'El procesamiento de los comprobantes ha comenzado.',
             ], 202);
         } catch (Exception $exception) {
+             // Maneja errores y devuelve un mensaje de error
             return response()->json([
                 'message' => 'Ocurrieron errores al procesar los comprobantes.',
                 'error' => $exception->getMessage(),
